@@ -1,23 +1,16 @@
 import React, { useState, useRef } from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  Image,
-  StyleSheet,
-  Platform,
-} from "react-native";
+import { View, Text, TouchableOpacity, Image, StyleSheet } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as MediaLibrary from "expo-media-library";
 import * as ImageManipulator from "expo-image-manipulator";
 
 export default function App() {
-  const [permission, requestPermission] = useCameraPermissions();
-  const [photoUri, setPhotoUri] = useState(null);
-  const [processing, setProcessing] = useState(false);
-  const cameraRef = useRef(null);
+  const [permiso, solicitarPermiso] = useCameraPermissions();
+  const [uriFoto, setUriFoto] = useState(null);
+  const [procesando, setProcesando] = useState(false);
+  const camaraRef = useRef(null);      
 
-  if (!permission) {
+  if (!permiso) {
     return (
       <View style={styles.center}>
         <Text>Cargando permisos...</Text>
@@ -25,95 +18,106 @@ export default function App() {
     );
   }
 
-  if (!permission.granted) {
+  if (!permiso.granted) {
     return (
       <View style={styles.center}>
         <Text>Necesitamos permiso para usar la cámara</Text>
-        <TouchableOpacity onPress={requestPermission} style={styles.button}>
+        {/*Este botón ejecuta solicitarPermiso, función que 
+          muestra el pop-up nativo del sistema para
+          que el usuario permita el uso de la cámara*/}
+        <TouchableOpacity onPress={solicitarPermiso} style={styles.button}>
           <Text>Dar permiso</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
-  const takePhoto = async () => {
-    if (!cameraRef.current) return;
+  const tomarFoto = async () => {
+    if (!camaraRef.current) return; // Verifica que la cámara exista
     try {
-      const photo = await cameraRef.current.takePictureAsync({
-        quality: 0.8,
+      const foto = await camaraRef.current.takePictureAsync({
+        quality: 1,
         skipProcessing: false,
       });
-      setPhotoUri(photo.uri);
+      setUriFoto(foto.uri); // Guarda la ruta de la foto
     } catch (e) {
       console.error("Error tomando foto:", e);
     }
   };
 
-  const saveToGallery = async (uri) => {
-    if (!uri) return;
-    setProcessing(true);
+  const guardarEnGaleria = async (uri) => {
+    if (!uri) return; // Verifica que haya una foto
+    setProcesando(true); 
     try {
-      await MediaLibrary.createAssetAsync(uri);
-      alert("Foto guardada en la galería ✅");
+      await MediaLibrary.createAssetAsync(uri); // Guarda la foto en la galería
+      alert("Foto guardada en la galería");
     } catch (e) {
       console.error(e);
-      alert("Error guardando la foto ❌");
+      alert("Error guardando la foto");
     } finally {
-      setProcessing(false);
+      setProcesando(false);
     }
   };
 
-  const applyEffect = async () => {
-    if (!photoUri) return;
-    setProcessing(true);
+  const aplicarEfecto = async () => {
+    if (!uriFoto) return; // Verifica que haya una foto
+    setProcesando(true);
     try {
-      const manipResult = await ImageManipulator.manipulateAsync(
-        photoUri,
-        [{ resize: { width: 800 } }, { rotate: 90 }],
-        { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG }
+      const resultado = await ImageManipulator.manipulateAsync(
+        uriFoto,
+        [
+          { resize: { width: 800 } },
+          { rotate: 90 }
+        ],
+        {
+          compress: 0.8,
+          format: ImageManipulator.SaveFormat.JPEG
+        }
       );
-      setPhotoUri(manipResult.uri);
-      alert("Efecto aplicado (resize + rotate) 🎨");
+      setUriFoto(resultado.uri);
+      alert("Efecto aplicado (resize + rotate)");
     } catch (e) {
       console.error(e);
-      alert("Error aplicando efecto ❌");
+      alert("Error aplicando efecto");
     } finally {
-      setProcessing(false);
+      setProcesando(false);
     }
   };
 
   return (
     <View style={{ flex: 1 }}>
-      {!photoUri ? (
-        <CameraView style={{ flex: 1 }} ref={cameraRef}>
+      {!uriFoto ? (
+        //Muestra la camara si todavia no tomaste una foto
+        <CameraView style={{ flex: 1 }} ref={camaraRef}>
           <View style={styles.cameraControls}>
-            <TouchableOpacity onPress={takePhoto} style={styles.button}>
+            <TouchableOpacity onPress={tomarFoto} style={styles.button}>
               <Text>TOMAR FOTO</Text>
             </TouchableOpacity>
           </View>
         </CameraView>
       ) : (
+        //Muestra la foto tomada 
         <View style={styles.preview}>
           <Image
-            source={{ uri: photoUri }}
+            source={{ uri: uriFoto }}
             style={styles.image}
             resizeMode="contain"
           />
           <View style={styles.row}>
-            <TouchableOpacity
-              onPress={() => setPhotoUri(null)}
-              style={styles.smallButton}
-            >
+
+            {/*Vuelve a la pantalla principal*/}
+            <TouchableOpacity onPress={() => setUriFoto(null)} style={styles.smallButton}>
               <Text>VOLVER</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => saveToGallery(photoUri)}
-              style={styles.smallButton}
-            >
-              <Text>{processing ? "Guardando..." : "GUARDAR"}</Text>
+
+            {/*Guarda la foto en la galeria*/}
+            <TouchableOpacity onPress={() => guardarEnGaleria(uriFoto)} style={styles.smallButton}>
+              <Text>{procesando ? "Guardando..." : "GUARDAR"}</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={applyEffect} style={styles.smallButton}>
-              <Text>{processing ? "Procesando..." : "EFECTO"}</Text>
+
+             {/*Aplica efectos (redimenciona y rota la imagen)*/}
+            <TouchableOpacity onPress={aplicarEfecto} style={styles.smallButton}>
+              <Text>{procesando ? "Procesando..." : "EFECTO"}</Text>
             </TouchableOpacity>
           </View>
         </View>
